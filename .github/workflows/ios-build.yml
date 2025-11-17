@@ -29,44 +29,25 @@ jobs:
         cd ios
         pod install
 
-    - name: Remove code signing from project
-      run: |
-        # Modify the Xcode project to remove code signing requirements
-        sed -i '' '/CODE_SIGN_STYLE/d' ios/Runner.xcodeproj/project.pbxproj
-        sed -i '' '/DEVELOPMENT_TEAM/d' ios/Runner.xcodeproj/project.pbxproj
-        sed -i '' '/CODE_SIGN_IDENTITY/d' ios/Runner.xcodeproj/project.pbxproj
-        sed -i '' '/PROVISIONING_PROFILE/d' ios/Runner.xcodeproj/project.pbxproj
-
     - name: Build iOS app without signing
       run: |
-        flutter build ios --release --no-codesign || true
-        # Even if flutter build fails, try to create IPA from what was built
         cd ios
-        if [ -d "build/Release-iphoneos/Runner.app" ]; then
-          mkdir -p Payload
-          cp -r build/Release-iphoneos/Runner.app Payload/
-          cd ..
-          zip -r uwb_poc_app.ipa ios/Payload
-          rm -rf ios/Payload
-          echo "IPA created from flutter build output"
-        else
-          # Fallback to xcodebuild
-          xcodebuild -workspace Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -sdk iphoneos \
-            -derivedDataPath build \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            build
-          mkdir -p Payload
-          cp -r build/Build/Products/Release-iphoneos/Runner.app Payload/
-          cd ..
-          zip -r uwb_poc_app.ipa ios/Payload
-          rm -rf ios/Payload
-          echo "IPA created from xcodebuild output"
-        fi
+        xcodebuild -workspace Runner.xcworkspace \
+          -scheme Runner \
+          -configuration Release \
+          -sdk iphoneos \
+          CODE_SIGN_IDENTITY="-" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO \
+          ONLY_ACTIVE_ARCH=NO \
+          build
+
+        # Package the .app into an IPA
+        mkdir -p Payload
+        cp -r build/Release-iphoneos/Runner.app Payload/
+        zip -r ../../uwb_poc_app.ipa Payload
+        rm -rf Payload
+        echo "IPA created successfully"
 
     - name: Upload IPA artifact
       uses: actions/upload-artifact@v4
