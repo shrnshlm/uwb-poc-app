@@ -24,14 +24,12 @@ jobs:
     - name: Install dependencies
       run: flutter pub get
 
-    - name: Install CocoaPods
+    - name: Install CocoaPods and Build
       run: |
         cd ios
         pod install
 
-    - name: Build iOS app without signing
-      run: |
-        cd ios
+        # Build the app
         xcodebuild -workspace Runner.xcworkspace \
           -scheme Runner \
           -configuration Release \
@@ -42,12 +40,26 @@ jobs:
           ONLY_ACTIVE_ARCH=NO \
           build
 
+        # Check where the app was built
+        find . -name "Runner.app" -type d
+
         # Package the .app into an IPA
-        mkdir -p Payload
-        cp -r build/Release-iphoneos/Runner.app Payload/
-        zip -r ../../uwb_poc_app.ipa Payload
-        rm -rf Payload
-        echo "IPA created successfully"
+        if [ -d "build/Release-iphoneos/Runner.app" ]; then
+          mkdir -p Payload
+          cp -r build/Release-iphoneos/Runner.app Payload/
+          zip -r ../uwb_poc_app.ipa Payload
+          rm -rf Payload
+          echo "IPA created from build/Release-iphoneos"
+        elif [ -d "../build/ios/Release-iphoneos/Runner.app" ]; then
+          mkdir -p Payload
+          cp -r ../build/ios/Release-iphoneos/Runner.app Payload/
+          zip -r ../uwb_poc_app.ipa Payload
+          rm -rf Payload
+          echo "IPA created from ../build/ios/Release-iphoneos"
+        else
+          echo "ERROR: Could not find Runner.app"
+          exit 1
+        fi
 
     - name: Upload IPA artifact
       uses: actions/upload-artifact@v4
