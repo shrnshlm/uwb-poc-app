@@ -29,19 +29,18 @@ jobs:
         cd ios
         pod install
 
-        # Build the app
-        xcodebuild -workspace Runner.xcworkspace \
-          -scheme Runner \
-          -configuration Release \
-          -sdk iphoneos \
-          CODE_SIGN_IDENTITY="-" \
-          CODE_SIGNING_REQUIRED=NO \
-          CODE_SIGNING_ALLOWED=NO \
-          ONLY_ACTIVE_ARCH=NO \
-          build
+        # Create symlink to fix CocoaPods path issue
+        ln -sf ios/Podfile.lock /Podfile.lock || true
 
+        # Build the app using flutter command which handles paths better
+        cd ..
+        flutter build ios --release --no-codesign
+
+    - name: Package IPA
+      run: |
+        cd ios
         # Check where the app was built
-        find . -name "Runner.app" -type d
+        find .. -name "Runner.app" -type d || true
 
         # Package the .app into an IPA
         if [ -d "build/Release-iphoneos/Runner.app" ]; then
@@ -50,12 +49,12 @@ jobs:
           zip -r ../uwb_poc_app.ipa Payload
           rm -rf Payload
           echo "IPA created from build/Release-iphoneos"
-        elif [ -d "../build/ios/Release-iphoneos/Runner.app" ]; then
+        elif [ -d "../build/ios/iphoneos/Runner.app" ]; then
           mkdir -p Payload
-          cp -r ../build/ios/Release-iphoneos/Runner.app Payload/
+          cp -r ../build/ios/iphoneos/Runner.app Payload/
           zip -r ../uwb_poc_app.ipa Payload
           rm -rf Payload
-          echo "IPA created from ../build/ios/Release-iphoneos"
+          echo "IPA created from ../build/ios/iphoneos"
         else
           echo "ERROR: Could not find Runner.app"
           exit 1
